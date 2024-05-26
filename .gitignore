@@ -1,6 +1,5 @@
 # 忽略所有文件
 *
-!E-album/main.py
 E-album/input_image
 E-album/output_image
 # 但不忽略 .gitignore 文件和 tracked_folder 文件夹
