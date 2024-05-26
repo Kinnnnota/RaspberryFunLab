@@ -1,9 +1,0 @@
-# 忽略所有文件夹
-*/
-
-# 不忽略 E-album 下的文件
-!/E-album/*
-
-# 忽略 E-album 下的特定文件夹
-/E-album/input_image/
-/E-album/output_image/
