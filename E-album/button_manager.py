@@ -33,6 +33,7 @@ class ButtonManager:
 
     def setting(self):
         """创建一个无计时器的设定画面，需手动关闭"""
+        self.update_folders_in_config()
         print("创建一个设定画面")
         self.settings_window = tk.Toplevel(self.root)
         self.settings_window.geometry('400x300')  # 设定窗口的大小
@@ -94,3 +95,23 @@ class ButtonManager:
     def get_selected_folders(self):
         """返回选中的文件夹路径列表"""
         return [path for path, var in self.folder_options.items() if var.get()]
+    
+    def update_folders_in_config(self):
+        """检查/mnt/myshare文件夹并更新配置文件"""
+        config = configparser.ConfigParser()
+        if os.path.exists(self.config_file_path):
+            config.read(self.config_file_path)
+        if 'Folders' not in config:
+            config['Folders'] = {}
+
+        # 检查/mnt/myshare文件夹下的文件夹,回头写进环境变量吧
+        share_folder_path = '/mnt/myshare'
+        if os.path.exists(share_folder_path) and os.path.isdir(share_folder_path):
+            for folder_name in os.listdir(share_folder_path):
+                folder_path = os.path.join(share_folder_path, folder_name)
+                if os.path.isdir(folder_path):
+                    config['Folders'][folder_name] = folder_path
+
+        with open(self.config_file_path, 'w') as configfile:
+            config.write(configfile)
+        print("配置文件已更新:", self.config_file_path)
