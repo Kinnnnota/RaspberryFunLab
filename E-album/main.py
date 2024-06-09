@@ -16,23 +16,23 @@ class PhotoAlbum:
         self.output_dirs = output_dir
         self.hide_buttons_id = None
         self.prevent_update = False
-        
+        self.button_manager = ButtonManager(self.root)
 
         self.imgs = []
         for imgs_dir in self.output_dirs:
             self.imgs.extend(self.discover_images(filetype=imgs_dir))  # 收集每个路径下的图片
-        self.change_imgs = self.discover_images(filetype=input_dir)
+        
         self.process_images()  # 处理所有图片
         self.index = 0
         self.shuffle_images()  # 洗牌
 
         self.display_image()  # 显示第一张图片
-        self.button_manager = ButtonManager(self.root)
+        
         
         
 
     def discover_images(self,filetype):
-        print("获取图像",filetype)
+        print("获取图像")
         supported_formats = ['.jpg', '.jpeg', '.png', '.bmp', '.gif']  # 添加你需要支持的文件格式
         files = []
         for root, dirs, filenames in os.walk(filetype): 
@@ -48,13 +48,15 @@ class PhotoAlbum:
 
     def process_images(self):
         print("处理图像")
-        if not self.change_imgs:
+        change_imgs = self.discover_images(filetype=self.input_dir)
+
+        if not change_imgs:
             return
-        for img_path in self.change_imgs:
+        for img_path in change_imgs:
             # 计算原始图片相对于input_dir的相对路径
             rel_path = os.path.relpath(img_path, self.input_dir)
             # 构造输出文件的完整路径，保持目录结构
-            output_path = os.path.join(self.output_dir, rel_path)
+            output_path = os.path.join('./output_image', rel_path)
             # 确保输出目录存在
             output_dir = os.path.dirname(output_path)
             if not os.path.exists(output_dir):
@@ -78,6 +80,8 @@ class PhotoAlbum:
 
     def display_image(self):
         print("显示图像")
+        if self.imgs == []:
+            self.button_manager.show_warning()
         if self.prevent_update:
             print("结束显示图像,return")
             return
@@ -86,7 +90,7 @@ class PhotoAlbum:
             print("重新洗牌")
             self.shuffle_images()  # 每当遍历完一遍图片后，重新洗牌
 
-        if self.imgs[self.index] == None:
+        if len(self.imgs) == 0:
             return
         img_path = self.imgs[self.index]
         try:
@@ -158,19 +162,28 @@ def get_selected_folders_from_config(config_file_path):
     """从配置文件中读取选中的文件夹路径列表"""
     selected_folders = []
     config = configparser.ConfigParser()
+    config.optionxform = str
+    all_false = True  # 假设所有选项初始为False
     if os.path.exists(config_file_path):
         config.read(config_file_path)
         if 'Folders' in config:
             for key, value in config['Folders'].items():
-                selected_folders.append(value)
+                print(key,value)
+                if value == 'True':
+                    selected_folders.append(key)
+                    all_false = False  # 如果找到任何一个为True，更新这个假设
+            if all_false:  # 如果所有的选项都是False，使用默认值
+                    selected_folders.append("/home/jo/E-album/output_image")
     return selected_folders
 
 def main():
     root = tk.Tk()
     root.attributes('-fullscreen', True)
 
-    input_dir = '/home/jo/E-album/input_image'  # 输入目录
+    input_dir = '/home/jo/E-album/input_image'  # 输入目录,主要用于把不同分辨率的图片转换为·480*320
+    
     config_file_path = os.path.join(os.path.expanduser('~/E-album'), 'config.ini')
+
     output_dir = get_selected_folders_from_config(config_file_path)
     
 

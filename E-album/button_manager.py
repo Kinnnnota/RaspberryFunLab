@@ -10,7 +10,7 @@ class ButtonManager:
         self.temp_window = None
         self.settings_window = None
         self.config_file_path = os.path.join(os.path.expanduser('~/E-album'), 'config.ini')  # 配置文件路径
-        self.folder_options = self.load_specific_env_vars()  # 加载特定环境变量
+        self.folder_options = self.load_specific_env_vars()  # 加载特定配置文件
         
 
     def display_temp_buttons(self):
@@ -31,12 +31,11 @@ class ButtonManager:
         """关闭当前Python运行"""
         sys.exit()
 
-    def setting(self):
+    def setting(self,close_button=False):
         """创建一个无计时器的设定画面，需手动关闭"""
-        self.update_folders_in_config()
-        print("创建一个设定画面")
+        self.folder_options = self.load_specific_env_vars()
         self.settings_window = tk.Toplevel(self.root)
-        self.settings_window.geometry('400x300')  # 设定窗口的大小
+        self.settings_window.geometry('400x300')
         print("创建设定相关的组件")
         for folder_path, var in self.folder_options.items():
             check = ttk.Checkbutton(self.settings_window, text=folder_path, variable=var)
@@ -44,53 +43,48 @@ class ButtonManager:
 
         confirm_button = ttk.Button(self.settings_window, text="确认", command=self.confirm_and_close)
         confirm_button.pack(pady=10)
-
-        close_button = ttk.Button(self.settings_window, text="关闭", command=self.settings_window.destroy)
-        close_button.pack(pady=20)  # 添加关闭按钮
+        
+        if not close_button:
+            close_button = ttk.Button(self.settings_window, text="关闭", command=self.settings_window.destroy)
+            close_button.pack(pady=20)
+        else:
+            # 或者可以不显示关闭按钮
+            # close_button.pack_forget()
+            pass
         print("设定画面已创建，无自动关闭")
         
     def save_settings(self):
-        """保存选中的文件夹路径到配置文件"""
-        selected_folders = [path for path, var in self.folder_options.items() if var.get()]
+        """保存文件夹路径和复选框状态到配置文件"""
         config = configparser.ConfigParser()
-        config['Folders'] = {f'FOLDER{i}': folder for i, folder in enumerate(selected_folders, start=1)}
+        config.optionxform = str
+        config['Folders'] = {folder_path: str(var.get()) for folder_path, var in self.folder_options.items()}
         with open(self.config_file_path, 'w') as configfile:
             config.write(configfile)
-        print("环境变量已保存到:", self.config_file_path)
+        print("配置文件已保存到:", self.config_file_path)
 
     def confirm_and_close(self):
         """保存设置并关闭窗口"""
         self.save_settings()
         self.settings_window.destroy()
+        os.execv(sys.executable, ['python'] + sys.argv)
 
     def load_specific_env_vars(self):
-        """加载特定的环境变量"""
+        """加载特定的配置文件，包括未选中的复选框，如果全部未选中，则使用默认路径"""
         folder_options = {}
+        imgs_default_path = "./output_image"
         config = configparser.ConfigParser()
+        config.optionxform = str
         if os.path.exists(self.config_file_path):
             config.read(self.config_file_path)
             if 'Folders' in config:
-                for key, value in config['Folders'].items():
-                    folder_options[value] = tk.BooleanVar(value=True)
-        else:
-            # 如果文件不存在，使用默认值
-            folder_options = {
-                "./input_image": tk.BooleanVar(),
-                "./output_image": tk.BooleanVar(),
-            }
+                for folder_path, state in config['Folders'].items():
+                    is_true = state == 'True'
+                    folder_options[folder_path] = tk.BooleanVar(value=is_true)
+            else:
+                # 如果配置文件中没有Folders段落，使用默认值
+                folder_options[imgs_default_path] = tk.BooleanVar(value=True)
         return folder_options
     
-    def update_specific_env_var(self, key, value): #用于更改计时，之后详细修改
-        """更新配置文件中的某个变量"""
-        config = configparser.ConfigParser()
-        if os.path.exists(self.config_file_path):
-            config.read(self.config_file_path)
-        if 'Folders' not in config:
-            config['Folders'] = {}
-        config['Folders'][key] = value
-        with open(self.config_file_path, 'w') as configfile:
-            config.write(configfile)
-        print(f"环境变量 {key} 已更新为: {value}")
 
     def get_selected_folders(self):
         """返回选中的文件夹路径列表"""
@@ -104,7 +98,7 @@ class ButtonManager:
         if 'Folders' not in config:
             config['Folders'] = {}
 
-        # 检查/mnt/myshare文件夹下的文件夹,回头写进环境变量吧
+        # 检查/mnt/myshare文件夹下的文件夹,回头写进配置文件吧
         share_folder_path = '/mnt/myshare'
         if os.path.exists(share_folder_path) and os.path.isdir(share_folder_path):
             for folder_name in os.listdir(share_folder_path):
@@ -115,3 +109,26 @@ class ButtonManager:
         with open(self.config_file_path, 'w') as configfile:
             config.write(configfile)
         print("配置文件已更新:", self.config_file_path)
+
+    def show_warning(self):
+        """显示警告画面，如果没有读取到任何图像文件"""
+        # 创建一个顶层窗口
+        self.warning_window = tk.Toplevel(self.root)
+        
+        self.warning_window.geometry('300x200')  # 设置窗口大小
+        self.warning_window.title('警告')  # 设置窗口标题
+
+        # 在窗口中添加警告信息
+        warning_label = ttk.Label(self.warning_window , text="没有读取到任何图像文件", font=('Arial', 12))
+        warning_label.pack(pady=20)  # 增加垂直间距
+
+        # 添加一个按钮，点击后关闭警告窗口并打开设置窗口
+        confirm_button = ttk.Button(self.warning_window , text="确定", command=lambda: [self.warning_window.destroy(), self.setting(disable_close_button=True)])
+        confirm_button.pack(pady=20)
+        print("警告画面已创建")
+        self.warning_window.grab_set()  # 抓取所有到这个窗口的事件
+        self.warning_window.transient(self.root)
+        self.warning_window.update_idletasks()
+
+
+
